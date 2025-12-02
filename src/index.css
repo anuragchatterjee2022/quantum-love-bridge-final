@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;700&family=Playfair+Display:ital,wght@1,700&display=swap');
+
+/* --- Dynamic Color Variables for ThemeChanger --- */
+:root {
+  /* DEFAULT THEME (In Love) */
+  --primary-color: #ff69b4; /* Hot Pink (Love color) */
+  --secondary-color: #8a2be2; /* Blue Violet (Deep/Mysterious) */
+  --text-light: #f0f0f0;
+  --text-dark: #1e1e1e;
+  --bg-dark: #121212;
+}
+
+body {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-light);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  
+  /* Background setup for the BackgroundChanger component */
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  transition: background-image 2s ease-in-out; 
+}
+
+h1, h2 {
+  font-family: 'Playfair Display', serif;
+  color: var(--primary-color);
+  text-shadow: 0 0 10px rgba(255, 105, 180, 0.5);
+  text-align: center;
+}
+
+.app-container {
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+section {
+  background-color: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(5px);
+  border-radius: 15px;
+  padding: 30px;
+  margin-bottom: 40px;
+  border: 1px solid var(--secondary-color);
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.3);
+}
+
+.text-glow {
+  color: var(--primary-color);
+  text-shadow: 0 0 5px var(--primary-color);
+}
+.hidden {
+  display: none;
+}
