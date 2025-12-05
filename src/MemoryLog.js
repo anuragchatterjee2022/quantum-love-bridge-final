@@ -1,33 +1,40 @@
 import React, { useState, useEffect } from 'react';
+import { db } from './firebaseConfig'; // <-- Database import
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 
-const STORAGE_KEY = 'loveBridgeMemories';
-// --- CUSTOMIZATION REQUIRED: Define Unique Keywords for Nostalgia Bonus ---
-const NOSTALGIA_KEYWORDS = [
-    'pizza', 'coffee', 'sunset', 'ankita', 'anurag', 'trip', 'our song' 
-];
+const MEMORIES_COLLECTION_NAME = 'memories';
+const NOSTALGIA_KEYWORDS = ['pizza', 'coffee', 'sunset', 'ankita', 'anurag', 'trip', 'our song']; 
 
 function MemoryLog() {
   const [memories, setMemories] = useState([]);
   const [newMemory, setNewMemory] = useState('');
-  const [nostalgiaScore, setNostalgiaScore] = useState(0);
-  const [scoreMessage, setScoreMessage] = useState("Start logging memories to power our bridge!");
+  const [nostalgiaScore, setNostalgiaScore] = useState(0); 
+  const [scoreMessage, setScoreMessage] = useState("Connecting to shared stream...");
 
-  // --- I. LOAD/SAVE LOGIC (Local Storage) ---
+  // --- I. REAL-TIME DATA LISTENER (REPLACES LOCAL STORAGE) ---
   useEffect(() => {
-    const storedMemories = localStorage.getItem(STORAGE_KEY);
-    if (storedMemories) {
-      const loadedMemories = JSON.parse(storedMemories);
-      setMemories(loadedMemories);
-      calculateNostalgiaScore(loadedMemories);
-    }
+    // Query memories, ordered by timestamp
+    const q = query(collection(db, MEMORIES_COLLECTION_NAME), orderBy('timestamp', 'desc'));
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const memoriesArray = snapshot.docs.map(doc => ({
+        id: doc.id, // Firestore ID
+        ...doc.data()
+      }));
+      setMemories(memoriesArray);
+      calculateNostalgiaScore(memoriesArray); // Recalculate score on new data
+      
+      setScoreMessage(`Successfully loaded ${memoriesArray.length} shared memories.`);
+    }, (error) => {
+      console.error("Error fetching documents: ", error);
+      setScoreMessage("ERROR: Could not connect to the shared database.");
+    });
+
+    return () => unsubscribe();
   }, []); 
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(memories));
-    calculateNostalgiaScore(memories);
-  }, [memories]); 
-
-  // --- II. SCORING LOGIC ---
+  // --- II. SCORING LOGIC (Runs on every new data fetch) ---
   const calculateNostalgiaScore = (currentMemories) => {
       let score = 0;
       const today = Date.now();
@@ -37,7 +44,7 @@ function MemoryLog() {
       currentMemories.forEach(memory => {
           score += 10;
           
-          if (today - memory.id < oneWeekInMs) {
+          if (today - memory.timestamp < oneWeekInMs) {
               score += 20;
           }
 
@@ -68,26 +75,37 @@ function MemoryLog() {
       setScoreMessage(message);
   };
 
-  const handleAddMemory = (e) => {
+  // --- III. ADD MEMORY (SAVES TO FIREBASE) ---
+  const handleAddMemory = async (e) => {
     e.preventDefault();
     if (newMemory.trim() !== '') {
-      const newEntry = {
-        id: Date.now(),
-        text: newMemory,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      };
-      setMemories(prevMemories => [newEntry, ...prevMemories]); 
-      setNewMemory(''); 
+      try {
+        await addDoc(collection(db, MEMORIES_COLLECTION_NAME), {
+          text: newMemory,
+          date: new Date().toLocaleDateString(),
+          timestamp: Date.now(), 
+          author: "Anurag", // IMPORTANT: Hardcode for your side
+        });
+        setNewMemory('');
+      } catch (e) {
+        console.error("Error adding document: ", e);
+      }
     }
   };
 
-  const handleDeleteMemory = (id) => {
-    setMemories(prevMemories => prevMemories.filter(memory => memory.id !== id));
+  // --- IV. DELETE MEMORY (For cleaning up the database) ---
+  const handleDeleteMemory = async (id) => {
+    try {
+        await deleteDoc(doc(db, MEMORIES_COLLECTION_NAME, id));
+    } catch (e) {
+        console.error("Error deleting document: ", e);
+    }
   };
+
 
   return (
     <section id="memory-log">
-      <h2>Emotional State Logger & Nostalgia Meter 🧠</h2>
+      <h2>Emotional State Logger & Shared Stream 🧠</h2>
       <p>A place for you to jot down thoughts, moments, or how you feel. It powers our bridge!</p>
       
       <div className="nostalgia-display">
@@ -108,19 +126,23 @@ function MemoryLog() {
       
       <div className="memory-list">
         {memories.length === 0 ? (
-          <p className="text-glow">Start logging your first memory! (Try keywords like 'pizza' or 'sunset')</p>
+          <p className="text-glow">No shared memories yet. Log one!</p>
         ) : (
           memories.map((memory) => (
             <div key={memory.id} className="memory-item">
+              <span className="memory-author">[{memory.author}]</span>
               <span className="memory-text">"{memory.text}"</span>
               <span className="memory-date">— Logged on {memory.date}</span>
-              <button onClick={() => handleDeleteMemory(memory.id)} className="delete-button">X</button>
+              <button onClick={() => handleDeleteMemory(memory.id)} className="delete-button">❌</button>
             </div>
           ))
         )}
       </div>
 
       <style jsx="true">{`
+        /* Styles needed for this component */
+        .memory-author { font-weight: 700; color: #00ccff; margin-right: 10px; }
+        .memory-item { justify-content: flex-start; }
         .nostalgia-display { background-color: rgba(255, 105, 180, 0.1); border: 2px solid var(--primary-color); border-radius: 10px; padding: 15px; margin-bottom: 25px; }
         .score-value { font-size: 3em; font-weight: 700; margin: 0; animation: pulse 1s infinite alternate; }
         .score-message { margin-top: 5px; font-style: italic; }
