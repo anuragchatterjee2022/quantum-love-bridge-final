@@ -152,7 +152,7 @@ function App() {
                 alt={`Shared Memory ${index + 1}`} 
                 className="gallery-image-advanced"
               />
-            ))}
+            ))}     
           </div>
         )}
       </section>
